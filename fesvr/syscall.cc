@@ -127,6 +127,7 @@ reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, r
   std::vector<char> buf(len);
   ssize_t ret = read(fds.lookup(fd), &buf[0], len);
   reg_t ret_errno = sysret_errno(ret);
+  //fprintf(stderr, "read fd=%lu fds=%d ret=%lu errno=%lu\n",fd,fds.lookup(fd),ret,ret_errno);
   if (ret > 0)
     memif->write(pbuf, ret, &buf[0]);
   return ret_errno;
@@ -137,6 +138,7 @@ reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4,
   std::vector<char> buf(len);
   ssize_t ret = pread(fds.lookup(fd), &buf[0], len, off);
   reg_t ret_errno = sysret_errno(ret);
+  //fprintf(stderr, "pread fd=%lu fds=%d len=%lu off=%lu ret=%lu errno=%lu\n",fd,fds.lookup(fd),len,off,ret,ret_errno);
   if (ret > 0)
     memif->write(pbuf, ret, &buf[0]);
   return ret_errno;
@@ -175,6 +177,7 @@ reg_t syscall_t::sys_fstat(reg_t fd, reg_t pbuf, reg_t a2, reg_t a3, reg_t a4, r
 {
   struct stat buf;
   reg_t ret = sysret_errno(fstat(fds.lookup(fd), &buf));
+  //fprintf(stderr, "fstat fd=%lu ret=%lu \n",fd,ret);
   if (ret != (reg_t)-1)
   {
     riscv_stat rbuf(buf);
@@ -212,6 +215,7 @@ reg_t syscall_t::sys_openat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, re
   std::vector<char> name(len);
   memif->read(pname, len, &name[0]);
   int fd = sysret_errno(AT_SYSCALL(openat, dirfd, &name[0], flags, mode));
+  //fprintf(stderr, "openat dirfd=%lu dirfds=%d name=%s flags=%lu mode=%lu fd=%d\n",dirfd,fds.lookup(dirfd),&name[0],flags,mode,fd);
   if (fd < 0)
     return sysret_errno(-1);
   return fds.alloc(fd);
@@ -224,6 +228,7 @@ reg_t syscall_t::sys_fstatat(reg_t dirfd, reg_t pname, reg_t len, reg_t pbuf, re
 
   struct stat buf;
   reg_t ret = sysret_errno(AT_SYSCALL(fstatat, dirfd, &name[0], &buf, flags));
+  //fprintf(stderr, "fstatat dirfd=%lu dirfds=%d name=%s flags=%lu ret=%lu\n",dirfd,fds.lookup(dirfd),&name[0],flags,ret);
   if (ret != (reg_t)-1)
   {
     riscv_stat rbuf(buf);
@@ -312,7 +317,9 @@ void syscall_t::dispatch(reg_t mm)
   if (n >= table.size() || !table[n])
     throw std::runtime_error("bad syscall #" + std::to_string(n));
 
+  //fprintf(stderr,"Performing syscall %lu\n",n);
   magicmem[0] = (this->*table[n])(magicmem[1], magicmem[2], magicmem[3], magicmem[4], magicmem[5], magicmem[6], magicmem[7]);
+  //fprintf(stderr,"Magic Mem: %lu %lu %lu %lu %lu %lu %lu %lu\n",magicmem[0],magicmem[1], magicmem[2], magicmem[3], magicmem[4], magicmem[5], magicmem[6], magicmem[7]);
 
   memif->write(mm, sizeof(magicmem), magicmem);
 }
